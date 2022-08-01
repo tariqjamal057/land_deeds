@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 import 'package:land_deeds/pages/Welcome.dart';
 import 'package:land_deeds/screens/register/VerifyEmail.dart';
+
+import '../NetworkHandler.dart';
 
 //assword visibility toggle
 bool _passwordVisible1 = true;
@@ -29,6 +33,16 @@ class _RegisterPageState extends State<RegisterPage>
   late Animation<Offset> animation3;
   late AnimationController _controller4;
   late Animation<Offset> animation4;
+
+  final _globalkey = GlobalKey<FormState>();
+  NetworkHandler networkHandler = NetworkHandler();
+  TextEditingController _usernameController = TextEditingController();
+  TextEditingController _emailController = TextEditingController();
+  TextEditingController _passwordController = TextEditingController();
+  String errorText = "";
+  bool validate = false;
+  bool circular = false;
+  final storage = new FlutterSecureStorage();
 
   @override
   void initState() {
@@ -186,6 +200,7 @@ class _RegisterPageState extends State<RegisterPage>
                       height: 50,
                     ),
                     Form(
+                      key: _globalkey,
                       child: Column(
                         children: [
                           SlideTransition(
@@ -197,21 +212,23 @@ class _RegisterPageState extends State<RegisterPage>
                                 fontSize: 17,
                                 letterSpacing: 1,
                               ),
+                              controller: _usernameController,
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(),
-                                labelText: "Full Name",
-                                hintText: "enter your full name",
+                                labelText: "Username",
+                                hintText: "enter your username",
                                 floatingLabelBehavior:
                                     FloatingLabelBehavior.auto,
                                 prefixIcon: Icon(Icons.person),
                                 isDense: true,
                                 errorBorder: OutlineInputBorder(),
                                 focusedErrorBorder: OutlineInputBorder(),
+                                errorText: validate ? null : errorText,
                               ),
                             ),
                           ),
                           SizedBox(
-                            height: 40,
+                            height: 20,
                           ),
                           SlideTransition(
                             position: animation21,
@@ -222,6 +239,7 @@ class _RegisterPageState extends State<RegisterPage>
                                 fontSize: 17,
                                 letterSpacing: 1,
                               ),
+                              controller: _emailController,
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(),
                                 labelText: "Email Address",
@@ -256,6 +274,7 @@ class _RegisterPageState extends State<RegisterPage>
                                   fontSize: 17,
                                   letterSpacing: 1,
                                 ),
+                                controller: _passwordController,
                                 decoration: InputDecoration(
                                   border: OutlineInputBorder(),
                                   labelText: "Password",
@@ -290,7 +309,7 @@ class _RegisterPageState extends State<RegisterPage>
                             position: animation3,
                             child: SizedBox(
                               width: double.infinity,
-                              height: 50,
+                              height: 60,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   primary: Colors.blue[700],
@@ -299,16 +318,84 @@ class _RegisterPageState extends State<RegisterPage>
                                         BorderRadius.circular(10), // <-- Radius
                                   ),
                                 ),
-                                child: Text("Register",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 20,
-                                      letterSpacing: 1.2,
-                                      color: Colors.white,
-                                    )),
-                                onPressed: () {
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (context) => VerifyEmail()));
+                                child: circular
+                                    ? CircularProgressIndicator()
+                                    : Text("Register",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 22,
+                                          letterSpacing: 1.2,
+                                          color: Colors.white,
+                                        )),
+                                onPressed: () async {
+                                  setState(() {
+                                    circular = true;
+                                  });
+                                  await checkUser();
+                                  if (_globalkey.currentState!.validate() &&
+                                      validate) {
+                                    // we will send the data to rest server
+                                    Map<String, String> data = {
+                                      "username": _usernameController.text,
+                                      "email": _emailController.text,
+                                      "password": _passwordController.text,
+                                    };
+                                    print(data);
+                                    var responseRegister = await networkHandler
+                                        .post("/user/register", data);
+
+                                    // Login Logic added here
+                                    // if (responseRegister.statusCode == 200 ||
+                                    //     responseRegister.statusCode == 201) {
+                                    //   Map<String, String> data = {
+                                    //     "username": _usernameController.text,
+                                    //     "password": _passwordController.text,
+                                    //   };
+                                    //   var response = await networkHandler.post(
+                                    //       "/user/login", data);
+
+                                    //   if (response.statusCode == 200 ||
+                                    //       response.statusCode == 201) {
+                                    //     Map<String, dynamic> output =
+                                    //         json.decode(response.body);
+                                    //     print(output["token"]);
+                                    //     await storage.write(
+                                    //         key: "token",
+                                    //         value: output["token"]);
+                                    //     setState(() {
+                                    //       validate = true;
+                                    //       circular = false;
+                                    //     });
+                                    //     Navigator.pushAndRemoveUntil(
+                                    //         context,
+                                    //         MaterialPageRoute(
+                                    //           builder: (context) =>
+                                    //               VerifyEmail(),
+                                    //         ),
+                                    //         (route) => false);
+                                    //   } else {
+                                    //     Scaffold.of(context).showSnackBar(
+                                    //         SnackBar(
+                                    //             content: Text("Netwok Error")));
+                                    //   }
+                                    // }
+
+                                    //Login Logic end here
+                                    if (responseRegister.statusCode == 200 ||
+                                        responseRegister.statusCode == 201) {
+                                      setState(() {
+                                        circular = false;
+                                      });
+                                      Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                              builder: (context) =>
+                                                  VerifyEmail()));
+                                    }
+                                  } else {
+                                    setState(() {
+                                      circular = false;
+                                    });
+                                  }
                                 },
                               ),
                             ),
@@ -367,5 +454,32 @@ class _RegisterPageState extends State<RegisterPage>
         ),
       ),
     );
+  }
+
+  checkUser() async {
+    if (_usernameController.text.length == 0) {
+      setState(() {
+        circular = false;
+        validate = false;
+        errorText = "Username Can't be empty";
+      });
+    } else {
+      var response = await networkHandler
+          .get("/user/checkUsername/${_usernameController.text}");
+      print(response);
+      print(response['Status']);
+      if (response['Status']) {
+        setState(() {
+          // circular = false;
+          validate = false;
+          errorText = "Username already taken";
+        });
+      } else {
+        setState(() {
+          // circular = false;
+          validate = true;
+        });
+      }
+    }
   }
 }

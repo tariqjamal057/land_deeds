@@ -1,6 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:land_deeds/pages/HomePage.dart';
 import 'package:land_deeds/pages/Welcome.dart';
 
+import '../NetworkHandler.dart';
 import 'forgetpassword/ForgetPassword.dart';
 
 //assword visibility toggle
@@ -26,6 +31,15 @@ class _SignInPageState extends State<SignInPage> with TickerProviderStateMixin {
   late Animation<Offset> animation22;
   late AnimationController _controller3;
   late Animation<Offset> animation3;
+
+  final _globalkey = GlobalKey<FormState>();
+  NetworkHandler networkHandler = NetworkHandler();
+  TextEditingController _usernameController = TextEditingController();
+  TextEditingController _passwordController = TextEditingController();
+  String errorText = "";
+  bool validate = false;
+  bool circular = false;
+  final storage = new FlutterSecureStorage();
 
   @override
   void initState() {
@@ -168,40 +182,38 @@ class _SignInPageState extends State<SignInPage> with TickerProviderStateMixin {
                       height: 80,
                     ),
                     Form(
+                      key: _globalkey,
                       child: Column(
                         children: [
                           SlideTransition(
                             position: animation21,
                             child: TextFormField(
-                              keyboardType: TextInputType.emailAddress,
+                              keyboardType: TextInputType.text,
                               style: TextStyle(
                                 color: Colors.black,
                                 fontSize: 17,
                                 letterSpacing: 1,
                               ),
+                              controller: _usernameController,
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(),
-                                labelText: "Email Address",
-                                hintText: "enter your email address",
+                                labelText: "Username",
+                                labelStyle: TextStyle(
+                                  color: Colors.black,
+                                ),
+                                hintText: "enter your username",
                                 floatingLabelBehavior:
                                     FloatingLabelBehavior.auto,
-                                prefixIcon: Icon(Icons.email),
+                                prefixIcon: Icon(Icons.person),
                                 isDense: true,
                                 errorBorder: OutlineInputBorder(),
                                 focusedErrorBorder: OutlineInputBorder(),
+                                errorText: errorText,
                               ),
-                              validator: (value) {
-                                RegExp regexp = new RegExp(email);
-                                if (value == null || value.isEmpty) {
-                                  return "Please Enter Your Email Address";
-                                } else if (!regexp.hasMatch(value)) {
-                                  return "Please Enter Valid Email Address";
-                                }
-                              },
                             ),
                           ),
                           SizedBox(
-                            height: 40,
+                            height: 20,
                           ),
                           SlideTransition(
                             position: animation22,
@@ -213,6 +225,7 @@ class _SignInPageState extends State<SignInPage> with TickerProviderStateMixin {
                                   fontSize: 17,
                                   letterSpacing: 1,
                                 ),
+                                controller: _passwordController,
                                 decoration: InputDecoration(
                                   border: OutlineInputBorder(),
                                   labelText: "Password",
@@ -272,7 +285,7 @@ class _SignInPageState extends State<SignInPage> with TickerProviderStateMixin {
                             position: animation3,
                             child: SizedBox(
                               width: double.infinity,
-                              height: 50,
+                              height: 60,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   primary: Colors.blue[700],
@@ -281,14 +294,56 @@ class _SignInPageState extends State<SignInPage> with TickerProviderStateMixin {
                                         BorderRadius.circular(10), // <-- Radius
                                   ),
                                 ),
-                                child: Text("Sign In",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 20,
-                                      letterSpacing: 1.2,
-                                      color: Colors.white,
-                                    )),
-                                onPressed: () {},
+                                child: circular
+                                    ? CircularProgressIndicator()
+                                    : Text("Sign In",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 22,
+                                          letterSpacing: 1.2,
+                                          color: Colors.white,
+                                        )),
+                                onPressed: () async {
+                                  setState(() {
+                                    circular = true;
+                                  });
+
+                                  //Login Logic start here
+                                  Map<String, String> data = {
+                                    "username": _usernameController.text,
+                                    "password": _passwordController.text,
+                                  };
+                                  var response = await networkHandler.post(
+                                      "/user/login", data);
+
+                                  if (response.statusCode == 200 ||
+                                      response.statusCode == 201) {
+                                    Map<String, dynamic> output =
+                                        json.decode(response.body);
+                                    print(output["token"]);
+                                    await storage.write(
+                                        key: "token", value: output["token"]);
+                                    setState(() {
+                                      validate = true;
+                                      circular = false;
+                                    });
+                                    Navigator.pushAndRemoveUntil(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => HomePage(),
+                                        ),
+                                        (route) => false);
+                                  } else {
+                                    String output = json.decode(response.body);
+                                    setState(() {
+                                      validate = false;
+                                      errorText = output;
+                                      circular = false;
+                                    });
+                                  }
+
+                                  // login logic End here
+                                },
                               ),
                             ),
                           ),

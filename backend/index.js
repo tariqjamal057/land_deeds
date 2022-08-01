@@ -14,7 +14,8 @@ const port = 8000;
 const app = express();
 
 // middleware
-app.use(express.json())
+app.use("/uploads",express.static("uploads"));
+app.use(express.json());
 const userRoute = require("./routes/user");
 app.use("/user",userRoute);
 

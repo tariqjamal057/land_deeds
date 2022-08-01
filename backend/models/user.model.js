@@ -25,8 +25,6 @@ const User = Schema({
   },
   phonenumber: {
     type: Number,
-    min: 10,
-    max: 10,
   },
   photo: {
     type: String,
@@ -34,6 +32,9 @@ const User = Schema({
   dob: {
     type: Date,
     default: Date.now,
+  },
+  gender: {
+    type: String,
   },
   country: {
     type: String,
@@ -49,16 +50,27 @@ const User = Schema({
   },
   no_of_lands: {
     type: Number,
+    default: 0,
   },
   land_seeled: {
     type: Number,
+    default: 0,
+  },
+  land_buyed: {
+    type: Number,
+    default: 0,
   },
   lastlogintime: {
     type: Date,
   },
   isverified: {
     type: Boolean,
+    default: false
   },
+  isUpdated: {
+    type: Boolean,
+    default: false
+  }
 });
 
 module.exports = mongoose.model("User", User);
